@@ -1,3 +1,4 @@
+// Parallax code from Makeability Lab: https://github.com/makeabilitylab/arduino/blob/master/MakeabilityLab_Arduino_Library/src/ParallaxJoystick.hpp
 #include <ParallaxJoystick.hpp>
 
 #include <Adafruit_GFX.h>
@@ -9,6 +10,7 @@
 // Declaration for an SSD1306 _display connected to I2C (SDA, SCL pins)
 #define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
 
+/* CONSTANTS */
 const int DELAY_LOOP_MS = 5; 
 const int DEBOUNCE_WINDOW = 20;
 const int DIE_FREQUENCY = 400;
@@ -28,6 +30,7 @@ const int JOYSTICK_LEFTRIGHT_PIN = A0;
 const int MAX_ANALOG_VAL = 1023;
 const enum JoystickYDirection JOYSTICK_Y_DIR = RIGHT;
 
+/* GLOBAL VARIABLES */
 unsigned long _vibroMotorStartTimeStamp = -1;
 
 int _shipHeight = 10;
@@ -55,9 +58,10 @@ bool _enemyDead = false;
 
 bool _gameOver = false;
 
+/* FSM STATES */
 enum ButtonState {Up, Pressed, Down, Released};
 enum LaserState {Still, Moving};
-enum GameState {NewGame, Playing, GameOver};
+enum GameState {NewGame, Instructions, Playing, GameOver};
 ButtonState _buttonState;
 LaserState _playerLaserState;
 LaserState _enemyLaserState;
@@ -85,6 +89,8 @@ void loop() {
   // depending on the current game state
   if (_gameState == NewGame) {
     startNewGame(BUTTON_INPUT_PIN);
+  } else if (_gameState == Instructions) {
+    showInstructions();
   } else if (_gameState == Playing) {
     playGame();
   } else if (_gameState == GameOver) {
@@ -99,7 +105,7 @@ void loop() {
   }
 }
 
-// Initializes the OLED screen
+// Initializes the OLED screen. Code from Makeability Lab: https://makeabilitylab.github.io/physcomp/advancedio/oled.html
 void initializeOledAndShowStartupScreen(){
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if (!_display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) { // Address 0x3D for 128x64
@@ -174,17 +180,29 @@ void initializeVariables() {
   _gameState = NewGame;
 }
 
-// Displays the home screen and handles the logic for the button,
-// which is used to start the new game
+/* GAME STATE CODE */
+
+// Displays the home screen and handles the logic for the button, which is used to start the new game.
+// Centered text code from Makeability Lab: https://makeabilitylab.github.io/physcomp/advancedio/oled.html#method-2-print-rendering 
 void startNewGame(int btnPin) {
   _display.clearDisplay();
   digitalWrite(LED_OUTPUT_PIN, LOW);
   initializeVariables();
 
-  _display.setTextSize(1);
+  int x, y, textWidth, textHeight;
+  String nameString = "SPACE WARS";
+  String instrString = "Press Button to Start New Game";
+
   _display.setTextColor(WHITE, BLACK);
-  _display.setCursor(0, 0);
-  _display.println("Press Button to Start New Game");
+  _display.setTextSize(2);
+  _display.getTextBounds(nameString, 0, 0, &x, &y, &textWidth, &textHeight);
+  _display.setCursor(_display.width() / 2 - textWidth / 2, _display.height() / 2 - textHeight / 2 - 10);
+  _display.println(nameString);
+
+  _display.setTextSize(1);
+  _display.getTextBounds(instrString, 0, 0, &x, &y, &textWidth, &textHeight);
+  _display.setCursor(_display.width() / 2 - textWidth / 2, _display.height() / 2 - textHeight / 2 + 20);
+  _display.println(instrString);
   _display.display();
 
   while (true) {
@@ -208,9 +226,37 @@ void startNewGame(int btnPin) {
         _buttonState = Down;
       } else {
         _buttonState = Up;
-        _gameState = Playing;
+        _gameState = Instructions; // Move to Instructions game state when a new game is started
         break;
       }
+    }
+  }
+}
+
+
+// Shows a screen of instructions for four seconds of how to play the game,
+// then moves game state to the Playing state
+void showInstructions() {
+  String firstInstr = "Use joystick to move ship";
+  String secondInstr = "Press button to shoot laser";
+  String thirdInstr = "Shoot the enemy ship and avoid being hit!";
+  
+  _display.clearDisplay();
+  _display.setTextColor(WHITE, BLACK);
+  _display.setTextSize(1);
+  _display.setCursor(0, 0);
+  _display.println(firstInstr);
+  _display.println();
+  _display.println(secondInstr);
+  _display.println();
+  _display.println(thirdInstr);
+  _display.display();
+
+  int startTime = millis();
+  while(true) {
+    if (millis() - startTime > 4000) {
+      _gameState = Playing;
+      break;
     }
   }
 }
@@ -238,10 +284,27 @@ void gameOver(int btnPin) {
   _display.clearDisplay();
   digitalWrite(LED_OUTPUT_PIN, HIGH);
 
-  _display.setTextSize(1);
+  int x, y, textWidth, textHeight;
+  String gameOverString = "GAME OVER";
+  String scoreString = String(_playerScoreCounter);
+  String returnString = "Press button to return to home";
+
   _display.setTextColor(WHITE, BLACK);
-  _display.setCursor(0, 0);
-  _display.println("GAME OVER. Press button to return to home");
+  _display.setTextSize(2);
+  _display.getTextBounds(gameOverString, 0, 0, &x, &y, &textWidth, &textHeight);
+  _display.setCursor(_display.width() / 2 - textWidth / 2, _display.height() / 2 - textHeight / 2 - 20);
+  _display.println(gameOverString);
+
+  _display.setTextSize(2);
+  _display.getTextBounds(scoreString, 0, 0, &x, &y, &textWidth, &textHeight);
+  _display.setCursor(_display.width() / 2 - textWidth / 2, _display.height() / 2 - textHeight / 2);
+  _display.println(scoreString);
+  
+  _display.setTextSize(1);
+  _display.getTextBounds(returnString, 0, 0, &x, &y, &textWidth, &textHeight);
+  _display.setCursor(_display.width() / 2 - textWidth / 2, _display.height() / 2 - textHeight / 2 + 20);
+  _display.println(returnString);
+
   _display.display();
 
   _buttonState = Up;
@@ -272,6 +335,8 @@ void gameOver(int btnPin) {
     }
   }  
 }
+
+/* HELPER FUNCTIONS */
 
 // Determines if the given button is pressed, accounting for debouncing
 boolean isButtonPressed(int btnPin) {
@@ -389,7 +454,8 @@ void moveLasers() {
   }  
 }
 
-// Play sounds and haptics when a death occurs, increment score when enemy dies, change game state to GameOver when player dies
+// Play sounds and haptics when a death occurs, increment score when enemy dies, change game state to GameOver when player dies.
+// Vibromotor code from Makeability Lab: https://makeabilitylab.github.io/physcomp/advancedio/vibromotor.html
 void handleDeaths() {
   // Vibro motor and sound when someone dies
   if (_playerDead || _enemyDead) {
@@ -521,6 +587,7 @@ void drawShapes() {
   _display.drawLine(_playerLaserX0, _playerLaserY0, _playerLaserX1, _playerLaserY1, SSD1306_WHITE);
   _display.drawLine(_enemyLaserX0, _enemyLaserY0, _enemyLaserX1, _enemyLaserY1, SSD1306_WHITE);
 
+  // Display score in upper left corner of screen
   _display.setTextSize(1);
   _display.setTextColor(WHITE, BLACK);
   _display.setCursor(0, 0);
