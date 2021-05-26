@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Web Serial Demo</title>
+</head>
+
+<body>
+  <script src="https://cdn.jsdelivr.net/gh/makeabilitylab/p5js/_libraries/serial.js"></script>
+  <h1>Web Serial Demo</h1>
+  This demo uses two buttons to increment/decrement a number between 0-255 and send it to your connected serial device.
+
+  <p></p>
+  <button id="connect-button" onclick="onConnectButtonClick()">Connect via Serial Port</button>
+
+  <button id="increment-buton" onclick="onIncrementButtonClick()">Increment Value</button>
+  <button id="decrement-buton" onclick="onDecrementButtonClick()">Decrement Value</button>
+
+  <h1>Current value: <span id="button-val"></span></h1>
+
+  <script>
+    // Setup Web Serial using serial.js
+    const serial = new Serial();
+    serial.on(SerialEvents.CONNECTION_OPENED, onSerialConnectionOpened);
+    serial.on(SerialEvents.CONNECTION_CLOSED, onSerialConnectionClosed);
+    serial.on(SerialEvents.DATA_RECEIVED, onSerialDataReceived);
+    serial.on(SerialEvents.ERROR_OCCURRED, onSerialErrorOccurred);
+  
+    function onSerialErrorOccurred(eventSender, error) {
+        console.log("onSerialErrorOccurred", error);
+    }
+  
+    function onSerialConnectionOpened(eventSender) {
+        console.log("onSerialConnectionOpened", eventSender);
+        document.getElementById("connect-button").style.display = "none";
+        document.getElementById("increment-button").style.display = "block";
+        document.getElementById("decrement-button").style.display = "block";
+        document.getElementById("button-val").textContent = serialVal;
+    }
+  
+    function onSerialConnectionClosed(eventSender) {
+        console.log("onSerialConnectionClosed", eventSender);
+    }
+  
+    function onSerialDataReceived(eventSender, newData) {
+        console.log("onSerialDataReceived", newData);
+    }
+  
+    async function onConnectButtonClick() {
+        console.log("Connect button clicked!");
+    }
+  </script>
+
+  <script>    
+    var serialVal;
+    async function onConnectButtonClick() {
+      console.log("Connect button clicked!");
+      serialVal = 0;
+
+      if (navigator.serial) {
+        if (!serial.isOpen()) {
+          await serial.connectAndOpen();
+        } else {
+        console.log("The serial connection appears already open");
+        }
+
+      } else {
+        alert('The Web Serial API does not appear supported on this web browser.');
+      }
+    }
+
+    async function onIncrementButtonClick() {
+      serialVal++;
+      serial.writeLine(serialVal);
+      document.getElementById("button-val").textContent = serialVal;
+    }
+
+    async function onDecrementButtonClick() {
+      serialVal--;
+      serial.writeLine(serialVal);
+      document.getElementById("button-val").textContent = serialVal;
+    }
+  </script>
+</body>
+</html>
