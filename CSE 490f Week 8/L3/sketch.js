@@ -10,7 +10,6 @@ let pHtmlMsg;
 let serialOptions = { baudRate: 115200  };
 let serial;
 
-let sliderGroup = [];
 let X;
 let Y;
 let Z;
